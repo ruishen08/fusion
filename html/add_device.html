@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data List Update</title>
+</head>
+<body>
+    <label for="plantName">Plant Name:</label>
+    <input type="text" id="plantName">
+    <br>
+    <label for="capacity">Capacity:</label>
+    <input type="text" id="capacity">
+    <br>
+    <label for="location">Location:</label>
+    <input type="text" id="location">
+    <br>
+    <label for="plantCode">Plant Code:</label>
+    <input type="text" id="plantCode">
+    <br>
+    <label for="sn">Serial Number:</label> <!-- Added input field for Serial Number -->
+    <input type="text" id="sn">
+    <br>
+    <label for="id">ID:</label> <!-- Added input field for ID -->
+    <input type="text" id="id">
+    <br>
+    <button onclick="addData()">Add Data</button>
+
+    <script>
+        function addData() {
+            // Get input values from the form
+            const plantName = document.getElementById('plantName').value;
+            const capacity = parseFloat(document.getElementById('capacity').value);
+            const location = document.getElementById('location').value;
+            const plantCode = document.getElementById('plantCode').value;
+            const sn = document.getElementById('sn').value;
+            const id = document.getElementById('id').value;
+
+            // Create a new data object
+            const newData = {
+                "plantName": plantName,
+                "capacity": capacity,
+                "location": location,
+                "plantCode": plantCode,
+                "sn":sn,
+                "id":id
+
+            };
+
+            // Send AJAX POST request to server to add new data
+            fetch('http://localhost:7000/addData', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to add data');
+                }
+                return response.json();
+            })
+            .then(data => {
+                updateDataList(); // Update the displayed data list
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // Initial update of the displayed data list
+        updateDataList();
+    </script>
+</body>
+</html>
+

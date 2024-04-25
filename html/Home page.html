@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Home</title>
+        <style>
+            header {
+                background-color: #333; /* Background color of the header */
+                color: #fff; /* Text color */
+                padding: 20px; /* Padding around the content inside the header */
+                text-align: center; /* Align text in the center */
+            }
+            nav {
+                display: flex; /* Display navigation items in a row */
+                justify-content: center; /* Center align navigation items */
+                margin-top: 20px; /* Add some space between header and navigation */
+            }
+            nav a {
+                color: #fff; /* Text color of navigation links */
+                text-decoration: none; /* Remove underline from links */
+                padding: 10px 20px; /* Padding around navigation links */
+                margin: 0 10px; /* Add some space between navigation links */
+            }
+            nav a:hover {
+                background-color: #555; /* Background color of navigation links on hover */
+            }
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+            }
+    
+        </style>
+    </head>
+<body>
+    <header>
+        <h1>TERA VA Solar Monitoring</h1>
+        <nav>
+            <a href="#" onclick="fetchExcelData()">Overview</a>
+            <a onclick="redirectdata()">Inverter data</a>
+            <a onclick="redirect()">Inverter status</a>
+            <a href="#" onclick="toggleAreaDropdown()">Area</a>
+            <select id="areaDropdown" style="display: none;" onchange="area()">
+                <option value="">Select an area</option>
+                <option value="klang">Klang</option>
+                <option value="Kuala Terengganu">Kuala Terengganu</option>
+                <option value="Sabah">Sabah</option>
+                <option value="Kulim">Kulim</option>
+            </select>
+            <a onclick="Add_device()">Add device</a>
+        </nav>
+    </header>     
+    <ul id="clientList">
+        <!-- Client data will be dynamically added here -->
+    </ul>
+
+    <!-- Input for filtering data by name -->
+    <input type="text" id="nameFilterInput" oninput="filterByName()" placeholder="Search by name">
+
+    <!-- Table element where the data will be displayed -->
+    <table id="excel-table" border="1">
+        <!-- Table header -->
+        <thead>
+            <tr>
+                <th>Plant Name</th>
+                <th>Capacity</th>
+                <th>Location</th>
+                <th>Plant Code</th>
+                <th>Serial Number</th>
+                <th>ID</th>
+            </tr>
+        </thead>
+        <!-- Table body -->
+        <tbody>
+            <!-- Table content will be dynamically generated here -->
+        </tbody>
+    </table>
+
+    <!-- JavaScript code -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+    <script src="Client_info.js"></script>
+    <script>
+        function toggleAreaDropdown() {
+        var areaDropdown = document.getElementById("areaDropdown");
+        areaDropdown.style.display = (areaDropdown.style.display === "none") ? "block" : "none";
+    }
+
+        // Function to filter data by name
+        function filterByName() {
+            var filterInput = document.getElementById("nameFilterInput").value.toUpperCase(); // Get the input and convert it to uppercase for case-insensitive matching
+            var table = document.getElementById("excel-table");
+            var rows = table.getElementsByTagName("tr");
+
+            for (var i = 1; i < rows.length; i++) { // Start from index 1 to skip the header row
+                var nameCell = rows[i].getElementsByTagName("td")[0]; // Assuming name is in the first column (index 0)
+                var name = nameCell.textContent || nameCell.innerText;
+
+                if (name.toUpperCase().indexOf(filterInput) > -1) {
+                    rows[i].style.display = ""; // Display the row if name matches the filter input
+                } else {
+                    rows[i].style.display = "none"; // Hide the row if name doesn't match the filter input
+                }
+            }
+        }
+
+        // Function to display data in the table
+        function displayClientDataInTable() {
+            // Get the table body element
+            var tableBody = document.getElementById("excel-table").getElementsByTagName("tbody")[0];
+
+            // Clear existing table rows
+            tableBody.innerHTML = "";
+
+            // Loop through clientData and add each entry as a table row
+            clientData.forEach(client => {
+                // Create a new table row
+                var row = tableBody.insertRow();
+
+                // Add data cells to the row
+                row.insertCell().textContent = client.plantName;
+                row.insertCell().textContent = client.capacity;
+                row.insertCell().textContent = client.location;
+                row.insertCell().textContent = client.plantCode;
+                row.insertCell().textContent = client.sn;
+                row.insertCell().textContent = client.id;
+            });
+        }
+
+        // Call the function to display data when the page loads
+        window.onload = displayClientDataInTable;
+
+        function redirect() {
+            window.open("inverter_status.html", "_blank");
+        }
+
+        function Add_device() {
+            window.open("add_device.html","_blank");
+        }
+        function redirectdata(){
+            window.open("inverter_data.html", "_blank");
+        }
+    </script>
+</body>
+</html>
+
+

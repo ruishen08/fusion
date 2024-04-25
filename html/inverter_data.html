@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Home</title>
+        <style>
+            header {
+                background-color: #333; /* Background color of the header */
+                color: #fff; /* Text color */
+                padding: 20px; /* Padding around the content inside the header */
+                text-align: center; /* Align text in the center */
+            }
+            nav {
+                display: flex; /* Display navigation items in a row */
+                justify-content: center; /* Center align navigation items */
+                margin-top: 20px; /* Add some space between header and navigation */
+            }
+            nav a {
+                color: #fff; /* Text color of navigation links */
+                text-decoration: none; /* Remove underline from links */
+                padding: 10px 20px; /* Padding around navigation links */
+                margin: 0 10px; /* Add some space between navigation links */
+            }
+            nav a:hover {
+                background-color: #555; /* Background color of navigation links on hover */
+            }
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: #f4f4f4;
+            }
+            .downloadTable{
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            padding: 15px 25px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        table{
+            width: 100%;
+            border-collapse: collapse;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        th, td{
+            padding: 8px;
+            text-align: center;
+            border: 2px solid black;
+        }
+
+        th{
+            background-color: #089008;
+        }
+        .container {
+        position: relative;
+        }
+
+        .date-selector {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+        .response-container {
+            margin-top: 20px; /* Adjust as needed */
+        }
+
+    
+        </style>
+    </head>
+<body>
+    <header>
+        <h1>Fusion Solar Inverter Data</h1>
+        <nav>
+            <a href="#" onclick="fetchExcelData()">Overview</a>
+            <a onclick="redirectdata()">Inverter data</a>
+            <a onclick="redirect()">Inverter status</a>
+            <a href="#" onclick="toggleAreaDropdown()">Area</a>
+            <select id="areaDropdown" style="display: none;">
+                <option value="KLANG">Klang</option>
+                <option value="Kuala Terengganu">Kuala Terengganu</option>
+                <option value="Sabah">Sabah</option>
+                <option value="Kulim">Kulim</option>
+            </select>
+            <a onclick="downloadTable()">Download</a>
+        </nav>
+    </header>     
+    <ul id="clientList">
+        <!-- Client data will be dynamically added here -->
+    </ul>
+    <div class="container">
+        <div class="date-selector">
+            <form id="dateForm">
+                <label for="startDate">Start Date:</label>
+                <input type="date" id="startDate" name="startDate" required>
+                <label for="endDate">End Date:</label>
+                <input type="date" id="endDate" name="endDate" required>
+            </form>
+        </div>
+        <div class="inverter-data">
+                <label for="collectTime">Collect Time:</label>
+                <input type="date" id="collectTime" name="collectTime">
+        </div>
+        <div class="response-container">
+            <div id="response1" class="response"></div>
+            <div id="response2" class="response"></div>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.4/xlsx.full.min.js"></script>
+    <script src="Client_info.js"></script>
+
+    <script>
+        let responseDataPage1 = [];
+        let responseDataPage2 = [];
+        let combinedData = [];
+
+        function toggleAreaDropdown() {
+        var areaDropdown = document.getElementById("areaDropdown");
+        areaDropdown.style.display = (areaDropdown.style.display === "none") ? "block" : "none";
+    }
+    
+        function getClientName(sn) {
+            const clientEntry = clientData.find(entry => {
+                if (Array.isArray(entry.sn)) {
+                    return entry.sn.includes(sn);
+                } else {
+                    return entry.sn === sn;
+                }
+            });
+            return clientEntry ? clientEntry.plantName : "Unknown";
+        }
+
+        function updateAreaDropdown() {
+            const areas = [...new Set(combinedData.map(item => item.location))];
+            const dropdown = document.getElementById('areaDropdown');
+            dropdown.innerHTML = 
+                '<option value="">Select option</option>' +
+                '<option value="KLANG">Klang</option>' +
+                '<option value="Kuala Terengganu">Kuala Terengganu</option>' +
+                '<option value="Tawau">Tawau</option>' +
+                '<option value="Kulim">Kulim</option>';
+            areas.forEach(area => {
+                dropdown.innerHTML += `<option value="${area}">${area}</option>`;
+            });
+        }
+
+        // Call the updateAreaDropdown function to initialize the dropdown
+        updateAreaDropdown();
+
+        // Define the filterData function
+        function filterData() {
+            // Retrieve start and end dates from input fields
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            // Convert dates to milliseconds
+            const startTimestamp = new Date(startDate).getTime() - (1 * 24 * 60 * 60 * 1000);
+            const endTimestamp = new Date(endDate).getTime();
+
+            const selectedArea = document.getElementById('areaDropdown').value;
+
+            // Filter data within the specified date range
+            let filteredData = combinedData.filter(item => {
+                const collectTime = new Date(item.collectTime).getTime();
+                return collectTime >= startTimestamp && collectTime <= endTimestamp;
+            });
+
+            // If no area is selected, return the data filtered by time only
+            if (!selectedArea) {
+                
+                const sumAndCountBySn = {};
+            filteredData.forEach(item => {
+                const { dataItemMap, sn } = item;
+                const perpowerRatio = dataItemMap && dataItemMap.perpower_ratio;
+                if (perpowerRatio !== undefined) {
+                    sumAndCountBySn[sn] = sumAndCountBySn[sn] || { sum: 0, count: 0 };
+                    sumAndCountBySn[sn].sum += perpowerRatio;
+                    sumAndCountBySn[sn].count++;
+                }
+            });
+
+            // Calculate average perpower ratio for each inverter
+            const averagePerpowerRatioBySn = {};
+            for (const sn in sumAndCountBySn) {
+                const { sum, count } = sumAndCountBySn[sn];
+                averagePerpowerRatioBySn[sn] = sum / count;
+            }
+
+            // Sort averagePerpowerRatioBySn object by Client Name
+            const sortedData = Object.keys(averagePerpowerRatioBySn).sort((a, b) => {
+                    const clientNameA = getClientName(a).toUpperCase();
+                    const clientNameB = getClientName(b).toUpperCase();
+                    if (clientNameA < clientNameB) {
+                        return -1;
+                    }
+                    if (clientNameA > clientNameB) {
+                        return 1;
+                    }
+                    return 0;
+                });
+
+                // Create table and header row
+                let tableHtml = '<table border="1">';
+                tableHtml += '<thead><tr><th>Client Name</th><th>Serial Number</th><th>Peak Sun Hour</th></tr></thead>';
+                tableHtml += '<tbody>';
+
+                // Add rows to the table
+                sortedData.forEach(sn => {
+                    // Get the plant name for the current serial number
+                    const plantName = getClientName(sn);
+                    tableHtml += `<tr><td>${plantName}</td><td>${sn}</td><td>${averagePerpowerRatioBySn[sn].toFixed(2)}</td></tr>`;
+                });
+
+                // Close table
+                tableHtml += '</tbody></table>';
+
+                // Append table to response div
+                document.getElementById('response1').innerHTML = tableHtml;
+                return;
+            }
+
+            // Otherwise, filter data by both time and selected area
+            filteredData = filteredData.filter(item => {
+                const { sn } = item;
+                let location;
+                if (Array.isArray(sn)) {
+                    // Handle case when sn is an array
+                    for (const s of sn) {
+                        const entry = clientData.find(entry => Array.isArray(entry.sn) ? entry.sn.includes(s) : entry.sn === s);
+                        if (entry && entry.location === selectedArea) {
+                            location = selectedArea;
+                            break;
+                        }
+                    }
+                } else {
+                    // Handle case when sn is a string
+                    location = clientData.find(entry => Array.isArray(entry.sn) ? entry.sn.includes(sn) : entry.sn === sn)?.location;
+                }
+                return location.includes(selectedArea);
+            });
+
+            // Calculate sum and count of perpower ratio for each inverter
+            const sumAndCountBySn = {};
+            filteredData.forEach(item => {
+                const { dataItemMap, sn } = item;
+                const perpowerRatio = dataItemMap && dataItemMap.perpower_ratio;
+                if (perpowerRatio !== undefined) {
+                    sumAndCountBySn[sn] = sumAndCountBySn[sn] || { sum: 0, count: 0 };
+                    sumAndCountBySn[sn].sum += perpowerRatio;
+                    sumAndCountBySn[sn].count++;
+                }
+            });
+
+            // Calculate average perpower ratio for each inverter
+            const averagePerpowerRatioBySn = {};
+            for (const sn in sumAndCountBySn) {
+                const { sum, count } = sumAndCountBySn[sn];
+                averagePerpowerRatioBySn[sn] = sum / count;
+            }
+
+            // Sort averagePerpowerRatioBySn object by Client Name
+            const sortedData = Object.keys(averagePerpowerRatioBySn).sort((a, b) => {
+                    const clientNameA = getClientName(a).toUpperCase();
+                    const clientNameB = getClientName(b).toUpperCase();
+                    if (clientNameA < clientNameB) {
+                        return -1;
+                    }
+                    if (clientNameA > clientNameB) {
+                        return 1;
+                    }
+                    return 0;
+                });
+
+                // Find the maximum average perpower ratio
+                let maxRatio = -Infinity;
+                let maxRatioSN = null;
+                for (const sn in averagePerpowerRatioBySn) {
+                    if (averagePerpowerRatioBySn[sn] > maxRatio) {
+                        maxRatio = averagePerpowerRatioBySn[sn];
+                        maxRatioSN = sn;
+                        maxRatioClientName = getClientName(sn);
+                    }
+                }
+
+                // Create a box to display the highest average perpower ratio
+                let maxRatioBox = `<div>Highest PSH: ${maxRatio} (Client Name: ${maxRatioClientName},Serial Number: ${maxRatioSN})</div>`;
+
+                // Create table and header row
+                let tableHtml = '<table border="1">';
+                tableHtml += '<thead><tr><th>Client Name</th><th>Serial Number</th><th>Peak Sun Hour</th></tr></thead>';
+                tableHtml += '<tbody>';
+
+                // Add rows to the table
+                sortedData.forEach(sn => {
+                    // Get the plant name for the current serial number
+                    const plantName = getClientName(sn);
+                    const ratio = averagePerpowerRatioBySn[sn];
+                    // Highlight the row if the average perpower ratio matches the maximum ratio
+                    const highlightStyle = ratio === maxRatio ? 'background-color: #98ff98;' : '';
+                    // Check if the ratio is more than 0.4 higher than the maximum ratio
+                    const redHighlightStyle = maxRatio - ratio > 0.4 ? 'background-color: #FFCBA4;' : '';
+                    tableHtml += `<tr style="${highlightStyle}${redHighlightStyle}"><td>${plantName}</td><td>${sn}</td><td>${ratio}</td></tr>`;
+                });
+
+                // Close table
+                tableHtml += '</tbody></table>';
+
+                // Append table to response div
+                document.getElementById('response1').innerHTML = maxRatioBox + tableHtml;
+            }
+        
+                
+        // Function to send request asynchronously
+        async function sendRequest() {
+            // Function to flatten an array of arrays into a single array
+            function flatten(arr) {
+                return arr.reduce((acc, val) => acc.concat(val), []);
+            }
+    
+            function filterAndSplitClientIDs(clientData) {
+            // Extract all IDs from clientData
+            const allIDs = clientData.flatMap(client => client.id);
+
+            let pages = {};
+            let currentPage = [];
+            let pageIndex = 1;
+            const max = 100;
+
+            // Iterate through all IDs
+            for (const id of allIDs) {
+                // Add current ID to the current page
+                currentPage.push(id);
+
+                // If current page size reaches the maximum page size, 
+                // add the current page to the pages object and reset
+                if (currentPage.length === max) {
+                    pages[`devIdsPage${pageIndex}`] = currentPage.join(',');
+                    currentPage = [];
+                    pageIndex++;
+                }
+            }
+
+            // If there are remaining IDs, add them to the last page
+            if (currentPage.length > 0) {
+                pages[`devIdsPage${pageIndex}`] = currentPage.join(',');
+            }
+
+            // Log the pages
+            Object.entries(pages).forEach(([page, ids]) => {
+                console.log(`${page} IDs:`, ids);
+            });
+
+            return pages;
+        }
+    
+            // Call the function to get devIdsPage1 and devIdsPage2
+            const { devIdsPage1, devIdsPage2 } = filterAndSplitClientIDs(clientData);
+            const devTypeId = "1";
+            let collectTime = document.getElementById('collectTime').value;
+            // Convert date to milliseconds
+            collectTime = new Date(collectTime).getTime();
+            const apiUrl = "https://sg5.fusionsolar.huawei.com/thirdData/getDevKpiDay";
+            
+            try {
+                // Send fetch requests asynchronously
+                const responses = await Promise.all([
+                    fetch('http://localhost:7000', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            devIds: devIdsPage1,
+                            devTypeId: devTypeId,
+                            collectTime: collectTime,
+                            apiUrl: apiUrl
+                        })
+                    }),
+                    fetch('http://localhost:7000', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            devIds: devIdsPage2,
+                            devTypeId: devTypeId,
+                            collectTime: collectTime,
+                            apiUrl: apiUrl
+                        })
+                    })
+                ]);
+            
+                // Extract JSON data from responses
+                const data = await Promise.all(responses.map(response => response.json()));
+            
+                // Update responseDataPage1 and responseDataPage2
+                responseDataPage1 = data[0].data;
+                responseDataPage2 = data[1].data;
+    
+                // Combine data from both pages
+                combinedData = [...responseDataPage1, ...responseDataPage2];
+  
+                const sumAndCountBySn = {};
+                combinedData.forEach(item => {
+                    const { dataItemMap, sn } = item;
+                    const perpowerRatio = dataItemMap && dataItemMap.perpower_ratio;
+                    if (perpowerRatio !== undefined) {
+                        sumAndCountBySn[sn] = sumAndCountBySn[sn] || { sum: 0, count: 0 };
+                        sumAndCountBySn[sn].sum += perpowerRatio;
+                        sumAndCountBySn[sn].count++;
+                    }
+                });
+    
+                const averagePerpowerRatioBySn = {};
+                for (const sn in sumAndCountBySn) {
+                    const { sum, count } = sumAndCountBySn[sn];
+                    averagePerpowerRatioBySn[sn] = sum / count;
+                }
+    
+                // Sort averagePerpowerRatioBySn object by Client Name
+            const sortedData = Object.keys(averagePerpowerRatioBySn).sort((a, b) => {
+                    const clientNameA = getClientName(a).toUpperCase();
+                    const clientNameB = getClientName(b).toUpperCase();
+                    if (clientNameA < clientNameB) {
+                        return -1;
+                    }
+                    if (clientNameA > clientNameB) {
+                        return 1;
+                    }
+                    return 0;
+                });
+
+                // Create table and header row
+                let tableHtml = '<table border="1">';
+                tableHtml += '<thead><tr><th>Client Name</th><th>Serial Number</th><th>Peak Sun Hour</th></tr></thead>';
+                tableHtml += '<tbody>';
+
+                // Add rows to the table
+                sortedData.forEach(sn => {
+                    // Get the plant name for the current serial number
+                    const plantName = getClientName(sn);
+                    tableHtml += `<tr><td>${plantName}</td><td>${sn}</td><td>${averagePerpowerRatioBySn[sn].toFixed(2)}</td></tr>`;
+                });
+
+                // Close table
+                tableHtml += '</tbody></table>';
+
+                // Append table to response div
+                document.getElementById('response1').innerHTML = tableHtml;
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error occurred. Check console for details.');
+            }
+        } 
+
+        function downloadTable() {
+            // Get the HTML content of the dynamically generated table from response1
+            const tableHtml1 = document.getElementById('response1').innerHTML;
+
+            // Create a new workbook
+            const workbook1 = XLSX.utils.book_new();
+
+            // Convert HTML table to worksheet for response1
+            const worksheet1 = XLSX.utils.table_to_sheet(document.getElementById('response1'));
+
+            // Apply borders to cells for response1
+            const range1 = XLSX.utils.decode_range(worksheet1['!ref']);
+            for (let R = range1.s.r; R <= range1.e.r; ++R) {
+                for (let C = range1.s.c; C <= range1.e.c; ++C) {
+                    const cellAddress = { c: C, r: R };
+                    const cellRef = XLSX.utils.encode_cell(cellAddress);
+                    if (!worksheet1[cellRef]) continue; // Skip empty cells
+                    worksheet1[cellRef].s = {
+                        border: {
+                            top: { style: 'thin', color: { auto: 1 } },
+                            bottom: { style: 'thin', color: { auto: 1 } },
+                            left: { style: 'thin', color: { auto: 1 } },
+                            right: { style: 'thin', color: { auto: 1 } }
+                        }
+                    };
+                }
+            }
+
+            // Add the worksheet to the workbook for response1
+            XLSX.utils.book_append_sheet(workbook1, worksheet1, 'Response 1');
+
+            // Convert workbook to binary Excel file for response1
+            const excelBuffer1 = XLSX.write(workbook1, { bookType: 'xlsx', type: 'array' });
+
+            // Convert array buffer to Blob for response1
+            const blob1 = new Blob([excelBuffer1], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+            // Create a temporary anchor element for response1
+            const a1 = document.createElement('a');
+            a1.href = URL.createObjectURL(blob1);
+
+            // Set the file name for response1
+            a1.download = 'fusionsolar_inverter_status.xlsx';
+
+            // Append the anchor to the document body and trigger a click event to start the download for response1
+            document.body.appendChild(a1);
+            a1.click();
+
+            // Remove the temporary anchor for response1
+            document.body.removeChild(a1);
+
+            // Repeat the above steps for response2 if needed
+            // You can copy the above code and make necessary modifications for response2
+        }
+        
+        document.getElementById('areaDropdown').addEventListener('change', function() {
+            filterData(); // Call the filterData function when the dropdown selection changes
+        });
+
+        var collectTimeInput = document.getElementById('collectTime');
+
+        // Add an event listener to listen for changes in the collect time input
+        collectTimeInput.addEventListener('change', function() {
+            // Call the sendRequest() function when the collect time input changes
+            sendRequest();
+        });
+
+        var endDateInput = document.getElementById('endDate');
+
+        // Add an event listener to listen for changes in the collect time input
+        endDateInput.addEventListener('change', function() {
+            // Call the sendRequest() function when the collect time input changes
+            filterData();
+        });
+
+    </script>          
+</body>
+</html>
